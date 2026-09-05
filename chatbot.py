@@ -2,12 +2,12 @@ from dataclasses import dataclass, asdict
 
 import requests
 
-
 @dataclass
 class ChatConfig:
     url: str = "http://localhost:11434/api/chat"
     model: str = "llama3.2"
     system_prompt: str = "You are a helpful assistant."
+    max_history: int = 10
 
 
 @dataclass
@@ -32,6 +32,18 @@ def send_request(chatbot: ChatConfig, messages: list[ChatMessage]) -> str:
     data = response.json()
     return data["message"]["content"]
 
+def build_messages(config: ChatConfig, history: list[ChatMessage]) -> list[dict[str, str]]:
+    """
+    config: carries system_prompt and max_history
+    history: every ChatMessage so far
+    returns: the dict list Ollama expects
+    """
+    system_message = ChatMessage(role="system", content=config.system_prompt)
+    trimmed_history = history[-config.max_history:]
+    combined = [system_message] + trimmed_history
+    return [{"role": m.role, "content": m.content} for m in combined]
+
+    
 
 def main():
     chatbot = ChatConfig()
