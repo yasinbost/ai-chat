@@ -50,8 +50,8 @@ def build_messages(config: ChatConfig, history: list[ChatMessage]) -> list[dict[
     return [{"role": m.role, "content": m.content} for m in combined]
 
 
-async def main():
-    chatbot = ChatConfig(system_prompt=load_or_create_config())
+async def run_chat(chatbot: ChatConfig) -> None:
+    """Runs the interactive chat loop until the user types 'quit'."""
     messages: list[ChatMessage] = [
         ChatMessage(role="system", content=chatbot.system_prompt)
     ]
@@ -66,6 +66,10 @@ async def main():
         reply: str = await send_request(chatbot, messages)
         print(f"Bot: {reply}")
         messages.append(ChatMessage(role="assistant", content=reply))
+
+
+async def main():
+    await run_chat(ChatConfig(system_prompt=load_or_create_config()))
 
 
 if __name__ == "__main__":

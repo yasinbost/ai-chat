@@ -8,5 +8,8 @@ version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = ["httpx", "typer"]
 
+[project.scripts]
+ai-chat = "ai_chat.cli:app"
+
 [tool.setuptools.packages.find]
 where = ["src"]
