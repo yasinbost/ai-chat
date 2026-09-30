@@ -1,7 +1,0 @@
-pyproject.toml
-src/ai_chat/__init__.py
-src/ai_chat.egg-info/PKG-INFO
-src/ai_chat.egg-info/SOURCES.txt
-src/ai_chat.egg-info/dependency_links.txt
-src/ai_chat.egg-info/requires.txt
-src/ai_chat.egg-info/top_level.txt
