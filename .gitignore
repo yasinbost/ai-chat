@@ -4,3 +4,8 @@ __pycache__/
 
 # Kisisel calisma notlari (git disi)
 NOTES.md
+
+# Gizli anahtarlar (asla commit edilmez)
+.env
+.env.local
+*.env
