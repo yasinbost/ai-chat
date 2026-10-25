@@ -155,18 +155,18 @@ def ask(prompt: str, provider: str = "claude") -> str:
     logger.debug("ask: provider=%s, messages=%d", provider, len(messages))
     try:
         if provider == "claude":
-            return send_claude_request(
+            reply = send_claude_request(
                 messages, system_prompt="You are a helpful assistant."
             )
         elif provider == "groq":
-            return send_openai_compatible_request(
+            reply = send_openai_compatible_request(
                 messages,
                 base_url=os.getenv("GROQ_BASE_URL"),
                 api_key=os.getenv("GROQ_API_KEY"),
                 model=os.getenv("GROQ_MODEL_NAME"),
             )
         elif provider == "ollama":
-            return send_openai_compatible_request(
+            reply = send_openai_compatible_request(
                 messages,
                 base_url=os.getenv("OLLAMA_BASE_URL"),
                 api_key="ollama",
@@ -174,6 +174,8 @@ def ask(prompt: str, provider: str = "claude") -> str:
             )
         else:
             raise ValueError(f"Unknown provider: {provider}")
+        logger.info("ask: provider=%s, reply_chars=%d", provider, len(reply))
+        return reply
     except Exception as e:  # noqa: BLE001 - ask() reports every failure as a string by design
         return f"{provider}: Error | {e}"
 
