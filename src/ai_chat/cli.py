@@ -1,6 +1,7 @@
 """Typer command line interface: ``ai-chat chat --provider ...``."""
 
 import asyncio
+import logging
 
 import anthropic
 import httpx
@@ -16,6 +17,10 @@ app = typer.Typer(help="A simple command-line chatbot.")
 @app.callback()
 def callback():
     """Keeps `chat` a named subcommand even while it is the only one."""
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+    )
 
 
 @app.command()

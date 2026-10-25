@@ -16,6 +16,7 @@ it in the separate ``system=`` parameter.
 """
 
 import asyncio
+import logging
 import os
 from dataclasses import asdict, dataclass
 
@@ -25,6 +26,8 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from ai_chat.config import DEFAULT_SYSTEM_PROMPT, load_or_create_config
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -149,6 +152,7 @@ def ask(prompt: str, provider: str = "claude") -> str:
         The model's reply text, or an error message string on failure.
     """
     messages = [{"role": "user", "content": prompt}]
+    logger.debug("ask: provider=%s, messages=%d", provider, len(messages))
     try:
         if provider == "claude":
             return send_claude_request(
