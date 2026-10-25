@@ -1,5 +1,7 @@
 # ai-chat
 
+[![CI](https://github.com/yasinbost/ai-chat/actions/workflows/ci.yml/badge.svg)](https://github.com/yasinbost/ai-chat/actions/workflows/ci.yml)
+
 ## What
 
 A command-line chatbot that holds a multi-turn conversation with an LLM. You pick the provider per run: Claude, Groq, or a local model through Ollama.
@@ -40,3 +42,7 @@ Type `quit` to exit. Requires Python 3.10+; `--provider ollama` also needs [Olla
 **Week 05 — Providers and secrets**
 - Groq and Ollama speak the OpenAI chat format, so one function serves both; Claude needs its own.
 - API keys live in `.env` (git-ignored) with a committed `.env.example`; read config at startup, never at import time.
+
+## License
+
+[MIT](LICENSE)
