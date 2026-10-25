@@ -8,6 +8,9 @@ version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = ["httpx", "typer", "anthropic", "python-dotenv", "openai"]
 
+[project.optional-dependencies]
+dev = ["ruff", "pytest"]
+
 [project.scripts]
 ai-chat = "ai_chat.cli:app"
 

@@ -1,6 +1,19 @@
 __pycache__/
 *.egg-info/
 .venv/
+build/
+dist/
+
+# Arac onbellekleri (ruff, pytest, coverage)
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editor / isletim sistemi
+.DS_Store
+.idea/
+.vscode/
 
 # Kisisel calisma notlari (git disi)
 NOTES.md

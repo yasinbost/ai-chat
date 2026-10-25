@@ -16,7 +16,7 @@ separate ``system=`` parameter.
 
 import asyncio
 import os
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 
 import anthropic
 import httpx
@@ -169,7 +169,7 @@ def ask(prompt: str, provider: str = "claude") -> str:
             )
         else:
             raise ValueError(f"Unknown provider: {provider}")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - ask() reports every failure as a string by design
         return f"{provider}: Error | {e}"
 
 
