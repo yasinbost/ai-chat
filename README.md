@@ -6,6 +6,17 @@
 
 A command-line chatbot that holds a multi-turn conversation with an LLM. You pick the provider per run: Claude, Groq, or a local model through Ollama.
 
+## Features
+
+- Chat with Claude, Groq, or a local Ollama model, chosen per run with `--provider`
+- Structured logging in the `ask()` helper: provider and message count at DEBUG, elapsed time and reply length at INFO
+- Centralized runtime configuration through `AppConfig`; API keys stay in the environment
+- Automated CI: ruff + pytest on every push
+
+```
+15:22:58 | INFO     | ai_chat.core | Response from ollama in 0.25s (18 chars)
+```
+
 ## Why
 
 I'm learning AI engineering and wanted a project small enough to understand end to end. The goal was not a feature-rich product but a codebase where I can explain every decision: packaging, how chat APIs work, async I/O, and a proper CLI.
@@ -42,6 +53,10 @@ Type `quit` to exit. Requires Python 3.10+; `--provider ollama` also needs [Olla
 **Week 05 — Providers and secrets**
 - Groq and Ollama speak the OpenAI chat format, so one function serves both; Claude needs its own.
 - API keys live in `.env` (git-ignored) with a committed `.env.example`; read config at startup, never at import time.
+
+**Week 07 — Observability and configuration**
+- `getLogger(__name__)` in libraries and `basicConfig` only in the app; `%s` placeholders defer string formatting until the level is enabled.
+- One typed `AppConfig` read once at startup replaces scattered `os.getenv()` calls; secrets stay out of it, and an invalid `log_level` fails fast.
 
 ## License
 
