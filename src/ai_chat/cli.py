@@ -8,6 +8,7 @@ import openai
 import typer
 from dotenv import load_dotenv
 
+from ai_chat.config import AppConfig, setup_logging
 from ai_chat.core import PROVIDERS, ChatConfig, run_chat_loop
 
 app = typer.Typer(help="A simple command-line chatbot.")
@@ -16,6 +17,8 @@ app = typer.Typer(help="A simple command-line chatbot.")
 @app.callback()
 def callback():
     """Keeps `chat` a named subcommand even while it is the only one."""
+    load_dotenv()  # must run before from_env(), which reads the environment once
+    setup_logging(AppConfig.from_env())
 
 
 @app.command()
@@ -27,7 +30,6 @@ def chat(
     model: str = typer.Option(ChatConfig.model, help="Ollama model (ollama provider only)."),
 ):
     """Start a chat session."""
-    load_dotenv()
     if provider not in PROVIDERS:
         raise typer.BadParameter(
             f"'{provider}' is not one of: {', '.join(PROVIDERS)}", param_hint="--provider"

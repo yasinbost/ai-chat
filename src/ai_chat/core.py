@@ -16,7 +16,9 @@ it in the separate ``system=`` parameter.
 """
 
 import asyncio
+import logging
 import os
+import time
 from dataclasses import asdict, dataclass
 
 import anthropic
@@ -24,7 +26,9 @@ import httpx
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from ai_chat.config import DEFAULT_SYSTEM_PROMPT, load_or_create_config
+from ai_chat.config import DEFAULT_SYSTEM_PROMPT, AppConfig, load_or_create_config
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -138,38 +142,52 @@ def send_openai_compatible_request(
     return response.choices[0].message.content
 
 
-def ask(prompt: str, provider: str = "claude") -> str:
+def ask(prompt: str, config: AppConfig, provider: str | None = None) -> str:
     """Send a prompt to an LLM provider and return the reply.
+
+    Settings (base URLs, model names, default provider) come from ``config``;
+    API keys are still read from the environment at call time so they never
+    live in a config object that might be logged.
 
     Args:
         prompt: The user message to send.
-        provider: One of "claude", "groq", "ollama". Defaults to "claude".
+        config: Runtime settings, usually ``AppConfig.from_env()``.
+        provider: One of "claude", "groq", "ollama". Defaults to
+            ``config.default_provider``.
 
     Returns:
         The model's reply text, or an error message string on failure.
     """
+    provider = provider or config.default_provider
     messages = [{"role": "user", "content": prompt}]
+    logger.debug("Calling provider=%s with %d message(s)", provider, len(messages))
     try:
+        start = time.monotonic()
         if provider == "claude":
-            return send_claude_request(
+            reply = send_claude_request(
                 messages, system_prompt="You are a helpful assistant."
             )
         elif provider == "groq":
-            return send_openai_compatible_request(
+            reply = send_openai_compatible_request(
                 messages,
-                base_url=os.getenv("GROQ_BASE_URL"),
+                base_url=config.groq_base_url,
                 api_key=os.getenv("GROQ_API_KEY"),
-                model=os.getenv("GROQ_MODEL_NAME"),
+                model=config.groq_model,
             )
         elif provider == "ollama":
-            return send_openai_compatible_request(
+            reply = send_openai_compatible_request(
                 messages,
-                base_url=os.getenv("OLLAMA_BASE_URL"),
+                base_url=config.ollama_base_url,
                 api_key="ollama",
-                model=os.getenv("OLLAMA_MODEL_NAME"),
+                model=config.ollama_model,
             )
         else:
             raise ValueError(f"Unknown provider: {provider}")
+        elapsed = time.monotonic() - start
+        logger.info(
+            "Response from %s in %.2fs (%d chars)", provider, elapsed, len(reply)
+        )
+        return reply
     except Exception as e:  # noqa: BLE001 - ask() reports every failure as a string by design
         return f"{provider}: Error | {e}"
 
