@@ -1,17 +1,18 @@
 """Core chat logic for ai-chat: message types, provider requests and the chat loop.
 
-Two providers are supported, each with its own request function:
+Three providers are supported (``PROVIDERS``), served by three request functions:
 
-* ``send_request`` talks to a local Ollama server over HTTP.
+* ``send_request`` talks to a local Ollama server over its native HTTP API.
 * ``send_claude_request`` talks to Claude through the Anthropic SDK.
 * ``send_openai_compatible_request`` talks to any OpenAI-compatible API
   (Groq, Ollama's ``/v1`` endpoint).
 
-``ask`` is a one-call helper that picks the provider by name.
+``ask`` is a one-call helper that picks the provider by name. ``run_chat_loop``
+is the interactive loop behind ``ai-chat chat --provider ...``.
 
-The two differ in how they take the system prompt: Ollama expects it as a
-``role="system"`` message inside ``messages``, Anthropic expects it in the
-separate ``system=`` parameter.
+They differ in how they take the system prompt: Ollama and OpenAI-compatible
+APIs expect a ``role="system"`` message inside ``messages``, Anthropic expects
+it in the separate ``system=`` parameter.
 """
 
 import asyncio
@@ -265,6 +266,7 @@ async def run_chat_loop(
 
 
 async def main():
+    """Run the Ollama chat directly (``python -m ai_chat.core``), without the CLI."""
     load_dotenv()
     await run_chat(ChatConfig(system_prompt=load_or_create_config()))
 

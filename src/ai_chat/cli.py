@@ -1,3 +1,5 @@
+"""Typer command line interface: ``ai-chat chat --provider ...``."""
+
 import asyncio
 
 import anthropic

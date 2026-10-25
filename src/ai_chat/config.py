@@ -1,3 +1,5 @@
+"""Reads, and on first run creates, the system prompt file ``~/.ai-chat/config.txt``."""
+
 from pathlib import Path
 
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant."
