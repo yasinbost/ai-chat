@@ -5,6 +5,7 @@ import asyncio
 import pytest
 
 from ai_chat import config
+from ai_chat.config import AppConfig
 from ai_chat.core import (
     ChatConfig,
     ChatMessage,
@@ -38,7 +39,7 @@ def test_build_messages_trims_history_but_keeps_system_prompt():
 
 
 def test_ask_unknown_provider_returns_error_string_instead_of_raising():
-    reply = ask("hello", provider="bogus-name")
+    reply = ask("hello", AppConfig(), provider="bogus-name")
 
     assert reply == "bogus-name: Error | Unknown provider: bogus-name"
 
@@ -70,3 +71,25 @@ def test_load_or_create_config_creates_default_file_in_home(monkeypatch, tmp_pat
 
     assert prompt == config.DEFAULT_SYSTEM_PROMPT
     assert (tmp_path / ".ai-chat" / "config.txt").exists()
+
+
+def test_setup_logging_rejects_a_typo_in_log_level():
+    with pytest.raises(ValueError, match="Invalid log_level: 'DEBG'"):
+        config.setup_logging(AppConfig(log_level="DEBG"))
+
+
+def test_setup_logging_rejects_names_that_are_not_levels():
+    with pytest.raises(ValueError, match="Invalid log_level"):
+        config.setup_logging(AppConfig(log_level="getLogger"))
+
+
+def test_app_config_from_env_reads_the_four_provider_variables(monkeypatch):
+    monkeypatch.setenv("GROQ_BASE_URL", "http://groq.test/v1")
+    monkeypatch.setenv("GROQ_MODEL_NAME", "groq-model")
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama.test/v1")
+    monkeypatch.setenv("OLLAMA_MODEL_NAME", "ollama-model")
+
+    cfg = AppConfig.from_env()
+
+    assert (cfg.groq_base_url, cfg.groq_model) == ("http://groq.test/v1", "groq-model")
+    assert (cfg.ollama_base_url, cfg.ollama_model) == ("http://ollama.test/v1", "ollama-model")

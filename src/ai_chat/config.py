@@ -1,5 +1,6 @@
 """Reads, and on first run creates, the system prompt file ``~/.ai-chat/config.txt``."""
 
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,6 +32,28 @@ class AppConfig:
             ollama_base_url=os.getenv("OLLAMA_BASE_URL", ""),
             ollama_model=os.getenv("OLLAMA_MODEL_NAME", ""),
         )
+
+
+def setup_logging(config: AppConfig) -> None:
+    """Configure the root logger from an AppConfig.
+
+    Raises:
+        ValueError: If ``config.log_level`` is not a real logging level name.
+            A typo fails loudly instead of silently falling back to a default.
+    """
+    level = getattr(logging, config.log_level.upper(), None)
+    if not isinstance(level, int):  # also rejects names like "getLogger"
+        # a bad config *value* (not a wrong argument type), so ValueError fits
+        raise ValueError(  # noqa: TRY004
+            f"Invalid log_level: '{config.log_level}'. "
+            "Use DEBUG, INFO, WARNING, ERROR, or CRITICAL."
+        )
+    fmt = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+    logging.basicConfig(level=level, format=fmt, datefmt="%H:%M:%S")
+    # Third-party libraries log far more than we want to read at DEBUG.
+    # httpx2/httpcore2 are the logger names newer httpx/httpcore releases use.
+    for noisy in ("httpx", "httpx2", "httpcore", "httpcore2", "anthropic", "openai"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
 
 
 def get_config_path() -> Path:
