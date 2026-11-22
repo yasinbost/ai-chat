@@ -16,11 +16,33 @@ from ai_chat.core import (
 )
 
 
-def test_build_messages_puts_system_prompt_first():
-    cfg = ChatConfig(system_prompt="Be brief.")
-    history = [ChatMessage(role="user", content="hi")]
+@pytest.fixture
+def sample_messages():
+    """A minimal one-turn conversation: a single user message."""
+    return [ChatMessage(role="user", content="hi")]
 
-    result = build_messages(cfg, history)
+
+@pytest.fixture
+def test_config():
+    """An AppConfig with obviously fake, non-default values.
+
+    If any of these leak into output or a request, the test shows it at once;
+    ``.invalid`` hosts never resolve, so a stray network call goes nowhere.
+    """
+    return AppConfig(
+        default_provider="fake-provider",
+        groq_base_url="http://groq.invalid/v1",
+        groq_model="fake-groq-model",
+        ollama_base_url="http://ollama.invalid/v1",
+        ollama_model="fake-ollama-model",
+        log_level="WARNING",
+    )
+
+
+def test_build_messages_puts_system_prompt_first(sample_messages):
+    cfg = ChatConfig(system_prompt="Be brief.")
+
+    result = build_messages(cfg, sample_messages)
 
     assert result == [
         {"role": "system", "content": "Be brief."},
@@ -38,8 +60,8 @@ def test_build_messages_trims_history_but_keeps_system_prompt():
     assert result[0]["role"] == "system"
 
 
-def test_ask_unknown_provider_returns_error_string_instead_of_raising():
-    reply = ask("hello", AppConfig(), provider="bogus-name")
+def test_ask_unknown_provider_returns_error_string_instead_of_raising(test_config):
+    reply = ask("hello", test_config, provider="bogus-name")
 
     assert reply == "bogus-name: Error | Unknown provider: bogus-name"
 
