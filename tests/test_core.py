@@ -3,6 +3,8 @@
 import asyncio
 from unittest.mock import patch
 
+import anthropic
+import httpx
 import pytest
 
 from ai_chat import config
@@ -121,6 +123,39 @@ def test_ask_groq_sends_model_and_base_url_from_config(mock_openai, test_config,
         model=test_config.groq_model,
         messages=[{"role": "user", "content": "hi"}],
     )
+
+
+# --- ask() error paths ----------------------------------------------------------
+# ask() has a single `except Exception` that formats every failure as
+# "<provider>: Error | <str(exception)>", so the exact string is the contract.
+
+
+@patch("ai_chat.core.anthropic.Anthropic")
+def test_ask_handles_claude_api_error(mock_anthropic, test_config, monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-key")
+    # A real SDK error object: APIStatusError subclasses need the HTTP response
+    # they came from; str(error) is the message we pass in.
+    response = httpx.Response(
+        401, request=httpx.Request("POST", "https://api.anthropic.invalid/v1/messages")
+    )
+    mock_anthropic.return_value.messages.create.side_effect = anthropic.AuthenticationError(
+        "invalid x-api-key", response=response, body=None
+    )
+
+    reply = ask("hi", test_config, provider="claude")
+
+    assert reply == "claude: Error | invalid x-api-key"
+
+
+@patch("ai_chat.core.OpenAI")
+def test_ask_handles_connection_failure(mock_openai, test_config):
+    mock_openai.return_value.chat.completions.create.side_effect = ConnectionError(
+        "Connection refused"
+    )
+
+    reply = ask("hi", test_config, provider="ollama")
+
+    assert reply == "ollama: Error | Connection refused"
 
 
 def test_run_chat_loop_rejects_unknown_provider():
