@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import anthropic
 import httpx
+import openai
 import pytest
 
 from ai_chat import config
@@ -147,6 +148,20 @@ def test_ask_handles_claude_api_error(mock_anthropic, test_config, monkeypatch):
     reply = ask("hi", test_config, provider="claude")
 
     assert reply == "claude: Error | invalid x-api-key"
+
+
+@patch("ai_chat.core.OpenAI")
+def test_ask_handles_groq_api_error(mock_openai, test_config):
+    response = httpx.Response(
+        401, request=httpx.Request("POST", "http://groq.invalid/v1/chat/completions")
+    )
+    mock_openai.return_value.chat.completions.create.side_effect = openai.AuthenticationError(
+        "Invalid API Key", response=response, body=None
+    )
+
+    reply = ask("hi", test_config, provider="groq")
+
+    assert reply == "groq: Error | Invalid API Key"
 
 
 @patch("ai_chat.core.OpenAI")
