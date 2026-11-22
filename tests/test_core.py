@@ -1,6 +1,7 @@
 """Pure-logic tests for ai_chat.core and ai_chat.config: no network, no real API keys."""
 
 import asyncio
+from unittest.mock import patch
 
 import pytest
 
@@ -64,6 +65,62 @@ def test_ask_unknown_provider_returns_error_string_instead_of_raising(test_confi
     reply = ask("hello", test_config, provider="bogus-name")
 
     assert reply == "bogus-name: Error | Unknown provider: bogus-name"
+
+
+# --- ask() provider branches, mocked ------------------------------------------
+# Patch the SDK class where core.py looks it up ("ai_chat.core.<name>"), not
+# where it is defined: core.py already holds its own reference to it.
+# ask() turns every exception into an error string, so a mis-wired mock shows
+# up as "<provider>: Error | ..." and fails the equality assert below.
+
+
+@patch("ai_chat.core.anthropic.Anthropic")
+def test_ask_returns_claude_reply(mock_anthropic, test_config, monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-key")  # passes the guard; never sent
+    mock_client = mock_anthropic.return_value
+    mock_client.messages.create.return_value.content[0].text = "Hello from Claude"
+
+    reply = ask("hi", test_config, provider="claude")
+
+    assert reply == "Hello from Claude"
+    mock_client.messages.create.assert_called_once()
+
+
+@patch("ai_chat.core.OpenAI")
+def test_ask_returns_groq_reply(mock_openai, test_config):
+    mock_client = mock_openai.return_value
+    mock_client.chat.completions.create.return_value.choices[0].message.content = "Hello from Groq"
+
+    reply = ask("hi", test_config, provider="groq")
+
+    assert reply == "Hello from Groq"
+
+
+@patch("ai_chat.core.OpenAI")
+def test_ask_returns_ollama_reply(mock_openai, test_config):
+    mock_client = mock_openai.return_value
+    mock_client.chat.completions.create.return_value.choices[0].message.content = "Hello from Ollama"
+
+    reply = ask("hi", test_config, provider="ollama")
+
+    assert reply == "Hello from Ollama"
+
+
+@patch("ai_chat.core.OpenAI")
+def test_ask_groq_sends_model_and_base_url_from_config(mock_openai, test_config, monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "fake-groq-key")
+    mock_client = mock_openai.return_value
+    mock_client.chat.completions.create.return_value.choices[0].message.content = "ok"
+
+    ask("hi", test_config, provider="groq")
+
+    mock_openai.assert_called_once_with(
+        base_url=test_config.groq_base_url, api_key="fake-groq-key"
+    )
+    mock_client.chat.completions.create.assert_called_once_with(
+        model=test_config.groq_model,
+        messages=[{"role": "user", "content": "hi"}],
+    )
 
 
 def test_run_chat_loop_rejects_unknown_provider():
