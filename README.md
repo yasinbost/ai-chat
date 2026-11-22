@@ -10,7 +10,8 @@ A command-line chatbot that holds a multi-turn conversation with an LLM. You pic
 
 - Chat with Claude, Groq, or a local Ollama model, chosen per run with `--provider`
 - Structured logging in the `ask()` helper: provider and message count at DEBUG, elapsed time and reply length at INFO
-- Centralized runtime configuration through `AppConfig`; API keys stay in the environment
+- Centralized runtime configuration through `AppConfig`; API keys stay in the environment, `LOG_LEVEL` sets verbosity
+- Offline test suite: every provider SDK is mocked, covering happy and error paths
 - Automated CI: ruff + pytest on every push
 
 ```
@@ -67,6 +68,14 @@ The tests need no API keys, no `.env` file and no network: every provider SDK (`
 **Week 07 — Observability and configuration**
 - `getLogger(__name__)` in libraries and `basicConfig` only in the app; `%s` placeholders defer string formatting until the level is enabled.
 - One typed `AppConfig` read once at startup replaces scattered `os.getenv()` calls; secrets stay out of it, and an invalid `log_level` fails fast.
+
+**Week 08 — Testing with mocks**
+- pytest fixtures give every test fresh shared setup; fake config values (`.invalid` hosts) make a leaked setting obvious.
+- `unittest.mock.patch` replaces the SDK client where `core.py` looks it up, so every provider branch of `ask()` is tested offline; `side_effect` simulates real SDK errors, and exact-string asserts catch failures that `ask()` would otherwise swallow.
+
+## Known limitations
+
+- The interactive `chat` loop does not use `AppConfig` yet: Groq settings are read straight from the environment, and `--provider ollama` uses the native Ollama API (`ChatConfig`) rather than `OLLAMA_BASE_URL`/`OLLAMA_MODEL_NAME`.
 
 ## License
 
