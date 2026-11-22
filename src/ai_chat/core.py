@@ -26,7 +26,12 @@ import httpx
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from ai_chat.config import DEFAULT_SYSTEM_PROMPT, AppConfig, load_or_create_config
+from ai_chat.config import (
+    DEFAULT_CLAUDE_MODEL,
+    DEFAULT_SYSTEM_PROMPT,
+    AppConfig,
+    load_or_create_config,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +84,9 @@ async def send_request(chatbot: ChatConfig, messages: list[ChatMessage]) -> str:
     return data["message"]["content"]
 
 
-def send_claude_request(messages: list[dict[str, str]], system_prompt: str) -> str:
+def send_claude_request(
+    messages: list[dict[str, str]], system_prompt: str, model: str = DEFAULT_CLAUDE_MODEL
+) -> str:
     """Send a conversation to Claude and return the reply text.
 
     Unlike Ollama, Anthropic does not accept a ``role="system"`` message, so
@@ -91,6 +98,7 @@ def send_claude_request(messages: list[dict[str, str]], system_prompt: str) -> s
             ``"assistant"`` roles are allowed, and the first should be ``"user"``.
         system_prompt: Instruction that sets Claude's behaviour for the whole
             conversation.
+        model: Claude model id. ``ask()`` passes ``AppConfig.claude_model``.
 
     Returns:
         The text of Claude's reply.
@@ -100,13 +108,14 @@ def send_claude_request(messages: list[dict[str, str]], system_prompt: str) -> s
         anthropic.AuthenticationError: If the key is set but invalid.
         anthropic.BadRequestError: If ``messages`` is malformed, for example
             if it contains a ``"system"`` role.
+        anthropic.NotFoundError: If ``model`` is not a valid model id.
         anthropic.APIConnectionError: If the Anthropic API cannot be reached.
     """
     if not os.getenv("ANTHROPIC_API_KEY"):
         raise ValueError("ANTHROPIC_API_KEY not set. Check your .env file.")
     client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from the environment
     response = client.messages.create(
-        model="claude-haiku-5-5",
+        model=model,
         max_tokens=1024,
         system=system_prompt,
         messages=messages,
@@ -156,7 +165,11 @@ def ask(prompt: str, config: AppConfig, provider: str | None = None) -> str:
             ``config.default_provider``.
 
     Returns:
-        The model's reply text, or an error message string on failure.
+        The model's reply text, or ``"<provider>: Error | <message>"`` on failure.
+
+    Raises:
+        Nothing. Every exception, including an unknown ``provider``, is caught
+        and returned as the error string above, so callers never need ``try``.
     """
     provider = provider or config.default_provider
     messages = [{"role": "user", "content": prompt}]
@@ -165,7 +178,7 @@ def ask(prompt: str, config: AppConfig, provider: str | None = None) -> str:
         start = time.monotonic()
         if provider == "claude":
             reply = send_claude_request(
-                messages, system_prompt="You are a helpful assistant."
+                messages, system_prompt=DEFAULT_SYSTEM_PROMPT, model=config.claude_model
             )
         elif provider == "groq":
             reply = send_openai_compatible_request(
@@ -193,10 +206,15 @@ def ask(prompt: str, config: AppConfig, provider: str | None = None) -> str:
 
 
 def build_messages(config: ChatConfig, history: list[ChatMessage]) -> list[dict[str, str]]:
-    """
-    config: carries system_prompt and max_history
-    history: every ChatMessage so far
-    returns: the dict list Ollama expects
+    """Prepend the system prompt and keep only the newest ``max_history`` messages.
+
+    Args:
+        config: Supplies ``system_prompt`` and ``max_history``.
+        history: Every ``ChatMessage`` so far, oldest first, without the system message.
+
+    Returns:
+        ``{"role": ..., "content": ...}`` dicts, system message first, ready to send
+        to Ollama or an OpenAI-compatible API.
     """
     system_message = ChatMessage(role="system", content=config.system_prompt)
     trimmed_history = history[-config.max_history:]
@@ -205,7 +223,17 @@ def build_messages(config: ChatConfig, history: list[ChatMessage]) -> list[dict[
 
 
 async def run_chat(chatbot: ChatConfig) -> None:
-    """Runs the interactive chat loop until the user types 'quit'."""
+    """Run the interactive Ollama chat loop until the user types 'quit'.
+
+    Args:
+        chatbot: Ollama connection settings and the system prompt.
+
+    Raises:
+        httpx.ConnectError: If the Ollama server is not reachable.
+        httpx.ReadTimeout: If a reply takes longer than 60 seconds.
+        httpx.HTTPStatusError: If Ollama answers with an error status, for
+            example 404 for a model that is not installed.
+    """
     messages: list[ChatMessage] = [
         ChatMessage(role="system", content=chatbot.system_prompt)
     ]
@@ -226,7 +254,12 @@ PROVIDERS = ("claude", "groq", "ollama")
 
 
 def _require_env(*names: str) -> list[str]:
-    """Return the values of the given environment variables, or raise if one is unset."""
+    """Return the values of the given environment variables, in the order given.
+
+    Raises:
+        ValueError: If any of them is unset or empty; the message names every
+            missing variable, not just the first.
+    """
     missing = [n for n in names if not os.getenv(n)]
     if missing:
         raise ValueError(f"{', '.join(missing)} not set. Check your .env file.")
@@ -234,7 +267,13 @@ def _require_env(*names: str) -> list[str]:
 
 
 def _reply_for(provider: str, history: list[dict[str, str]], system_prompt: str) -> str:
-    """Get one reply for ``provider`` (claude or groq) from the conversation so far."""
+    """Get one reply for ``provider`` (claude or groq) from the conversation so far.
+
+    Raises:
+        ValueError: If ``ANTHROPIC_API_KEY`` or a ``GROQ_*`` variable is unset.
+        anthropic.APIError: If the Claude request fails.
+        openai.APIError: If the Groq request fails.
+    """
     if provider == "claude":
         return send_claude_request(history, system_prompt)
     base_url, api_key, model = _require_env(
@@ -257,8 +296,13 @@ async def run_chat_loop(
 
     Raises:
         ValueError: If ``provider`` is unknown or a required variable is unset.
-        anthropic.AuthenticationError: If the Claude key is invalid.
-        openai.AuthenticationError: If the Groq key is invalid.
+        anthropic.APIError: If a Claude request fails, for example
+            ``AuthenticationError`` for an invalid key.
+        openai.APIError: If a Groq request fails, for example
+            ``AuthenticationError`` for an invalid key.
+        httpx.ConnectError: If ``provider`` is ollama and the server is not reachable.
+        httpx.HTTPStatusError: If ``provider`` is ollama and it answers with an
+            error status, for example 404 for a model that is not installed.
     """
     if provider not in PROVIDERS:
         raise ValueError(f"Unknown provider: {provider}")
@@ -284,7 +328,12 @@ async def run_chat_loop(
 
 
 async def main():
-    """Run the Ollama chat directly (``python -m ai_chat.core``), without the CLI."""
+    """Run the Ollama chat directly (``python -m ai_chat.core``), without the CLI.
+
+    Raises:
+        httpx.ConnectError: If the Ollama server is not reachable.
+        httpx.HTTPStatusError: If Ollama answers with an error status.
+    """
     load_dotenv()
     await run_chat(ChatConfig(system_prompt=load_or_create_config()))
 
