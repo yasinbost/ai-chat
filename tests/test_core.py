@@ -34,6 +34,7 @@ def test_config():
     """
     return AppConfig(
         default_provider="fake-provider",
+        claude_model="fake-claude-model",
         groq_base_url="http://groq.invalid/v1",
         groq_model="fake-groq-model",
         ollama_base_url="http://ollama.invalid/v1",
@@ -86,6 +87,7 @@ def test_ask_returns_claude_reply(mock_anthropic, test_config, monkeypatch):
 
     assert reply == "Hello from Claude"
     mock_client.messages.create.assert_called_once()
+    assert mock_client.messages.create.call_args.kwargs["model"] == test_config.claude_model
 
 
 @patch("ai_chat.core.OpenAI")

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant."
+DEFAULT_CLAUDE_MODEL = "claude-haiku-5-5"
 
 
 @dataclass
@@ -17,6 +18,7 @@ class AppConfig:
     """
 
     default_provider: str = "claude"
+    claude_model: str = DEFAULT_CLAUDE_MODEL
     groq_base_url: str = ""
     groq_model: str = ""
     ollama_base_url: str = ""
@@ -25,8 +27,13 @@ class AppConfig:
 
     @classmethod
     def from_env(cls) -> "AppConfig":
-        """Build an AppConfig by reading the current environment."""
+        """Build an AppConfig by reading the current environment.
+
+        Unset variables fall back to the field defaults; nothing is validated
+        here, so this never raises.
+        """
         return cls(
+            claude_model=os.getenv("CLAUDE_MODEL_NAME", DEFAULT_CLAUDE_MODEL),
             groq_base_url=os.getenv("GROQ_BASE_URL", ""),
             groq_model=os.getenv("GROQ_MODEL_NAME", ""),
             ollama_base_url=os.getenv("OLLAMA_BASE_URL", ""),
@@ -57,17 +64,24 @@ def setup_logging(config: AppConfig) -> None:
 
 
 def get_config_path() -> Path:
-    """
-    returns: where the config file lives (~/.ai-chat/config.txt).
-    Only builds the path; it does not create anything.
+    """Return where the config file lives: ``~/.ai-chat/config.txt``.
+
+    Only builds the path; it does not touch the filesystem.
     """
     return Path.home() / ".ai-chat" / "config.txt"
 
 
 def load_or_create_config() -> str:
-    """
-    Creates the config file with the default system prompt if it is missing.
-    returns: the system prompt stored in the file (str)
+    """Return the system prompt from the config file, creating it on first run.
+
+    If the file is missing it is written with ``DEFAULT_SYSTEM_PROMPT``.
+
+    Returns:
+        The stored system prompt, stripped of surrounding whitespace.
+
+    Raises:
+        OSError: If the directory or file cannot be created or read, for
+            example ``PermissionError`` on a read-only home directory.
     """
     path = get_config_path()
 

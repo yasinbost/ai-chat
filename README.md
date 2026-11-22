@@ -33,6 +33,16 @@ ai-chat chat --provider groq   # or: claude, ollama
 
 Type `quit` to exit. Requires Python 3.10+; `--provider ollama` also needs [Ollama](https://ollama.com/download) running locally.
 
+## Running the Tests
+
+```bash
+pip install -e ".[dev]"     # adds pytest and ruff
+pytest -v                   # run the test suite
+ruff check .                # lint
+```
+
+The tests need no API keys, no `.env` file and no network: every provider SDK (`anthropic.Anthropic`, `openai.OpenAI`) is replaced with a mock, so `ask()` is tested on both its happy path and its error paths entirely offline. Shared test data lives in two pytest fixtures, `sample_messages` and `test_config`; the latter uses obviously fake values (`fake-groq-model`, `http://groq.invalid/v1`) so a leaked setting is easy to spot. CI runs the same two commands on every push.
+
 ## Learned
 
 **Week 01 — Python building blocks**
