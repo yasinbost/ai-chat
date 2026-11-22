@@ -38,6 +38,7 @@ class AppConfig:
             groq_model=os.getenv("GROQ_MODEL_NAME", ""),
             ollama_base_url=os.getenv("OLLAMA_BASE_URL", ""),
             ollama_model=os.getenv("OLLAMA_MODEL_NAME", ""),
+            log_level=os.getenv("LOG_LEVEL", "INFO"),
         )
 
 

@@ -18,12 +18,16 @@ app = typer.Typer(help="A simple command-line chatbot.")
 def callback():
     """Keeps `chat` a named subcommand even while it is the only one."""
     load_dotenv()  # must run before from_env(), which reads the environment once
-    setup_logging(AppConfig.from_env())
+    try:
+        setup_logging(AppConfig.from_env())
+    except ValueError as e:  # e.g. LOG_LEVEL=DEBG in the environment
+        typer.echo(e, err=True)
+        raise typer.Exit(code=1) from None
 
 
 @app.command()
 def chat(
-    provider: str = typer.Option("claude", help="claude, groq, or ollama"),
+    provider: str = typer.Option(AppConfig.default_provider, help="claude, groq, or ollama"),
     system_prompt: str = typer.Option(
         None, help="Instruction that sets the bot's behaviour (default: config file)."
     ),

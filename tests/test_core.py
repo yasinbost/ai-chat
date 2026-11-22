@@ -224,3 +224,15 @@ def test_app_config_from_env_reads_the_four_provider_variables(monkeypatch):
 
     assert (cfg.groq_base_url, cfg.groq_model) == ("http://groq.test/v1", "groq-model")
     assert (cfg.ollama_base_url, cfg.ollama_model) == ("http://ollama.test/v1", "ollama-model")
+
+
+def test_app_config_from_env_reads_log_level(monkeypatch):
+    monkeypatch.setenv("LOG_LEVEL", "DEBUG")
+
+    assert AppConfig.from_env().log_level == "DEBUG"
+
+
+def test_app_config_from_env_defaults_log_level_to_info(monkeypatch):
+    monkeypatch.delenv("LOG_LEVEL", raising=False)
+
+    assert AppConfig.from_env().log_level == "INFO"
